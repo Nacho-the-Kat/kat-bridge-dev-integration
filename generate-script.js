@@ -111,11 +111,6 @@ function ensureAddressBytes20(addr) {
   return bytes;
 }
 
-function tokenRefToTokBytes(token) {
-  if (token.mode === 'issue') return hexToBytes(token.ca);
-  return new TextEncoder().encode(token.tick);
-}
-
 function buildKrc20TransferJSON(token, amtDecimalString, toKaspaAddress) {
   const base = { p: 'krc-20', op: 'transfer', amt: amtDecimalString, to: toKaspaAddress };
   const json = token.mode === 'issue' ? { ...base, ca: token.ca } : { ...base, tick: token.tick };
@@ -295,16 +290,6 @@ function testScriptGeneration() {
     console.log('✅ Script generated successfully!');
     console.log('Script length:', script.length, 'bytes');
     console.log('Script hex:', bytesToHex(script));
-    console.log('\n📋 Copy this hex string to test with parse-script-direct.js:');
-    console.log('node parse-script-direct.js --script', bytesToHex(script));
-    console.log('\n💻 Usage in submitCommitReveal:');
-    console.log('const result = await wallet.submitCommitReveal({');
-    console.log('  script: script,');
-    console.log('  commitAmountSompi: BigInt(500000000), // 5 KAS minimum');
-    console.log('  returnAddress: "kaspa:...",');
-    console.log('  network: "testnet-11"');
-    console.log('});');
-    
   } catch (error) {
     console.error('❌ Error generating script:', error.message);
   }

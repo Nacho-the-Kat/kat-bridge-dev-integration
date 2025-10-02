@@ -17,6 +17,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "cbor-js": "^0.1.0",
     "crypto": "^1.0.1"
   },
   "engines": {
