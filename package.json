@@ -1,0 +1,25 @@
+{
+  "name": "kaspa-bridge-script-generator",
+  "version": "1.0.0",
+  "description": "Generates Uint8Array scripts for Kaspa Bridge commit-reveal transactions",
+  "main": "script-generator.js",
+  "scripts": {
+    "start": "node script-generator.js",
+    "test": "node script-generator.js"
+  },
+  "keywords": [
+    "kaspa",
+    "bridge",
+    "script",
+    "cbor",
+    "commit-reveal"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "crypto": "^1.0.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
