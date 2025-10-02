@@ -1,48 +1,46 @@
-# Kaspa Bridge Script Generator & Parser
+# Kaspa Bridge Integration Guide
 
-Tools for encoding and decoding Kaspa Bridge commit-reveal transactions with KRC-20 token transfers, plus EVM contract interaction scripts.
+Bridge tokens between Kaspa (L1) and Kasplex (L2) networks. Transfer KRC-20 tokens from Kaspa to mint ERC-20 tokens on Kasplex, or burn ERC-20 tokens on Kasplex to receive KRC-20 tokens on Kaspa.
 
 ## Quick Start
 
 ```bash
-# Install dependencies
 npm install
-
-# Generate a bridge script
-npm run start
-
-# Test the burnForBridgeBack function
-npm run burn
-
-# Parse a signature script
-npm run parse -- --script <hex>
+npm run start    # Generate L1→L2 script
+npm run burn     # Test L2→L1 burn
+npm run parse -- --script <hex>  # Parse script
 ```
 
-## Script Structure
+## Bridge Fee API
 
-Bridge scripts contain two data lanes:
+**Recommended**: Fetch bridge fees dynamically to ensure you're using current rates:
 
-### EXTRA Lane (Bridge Routing)
-- **Marker**: `0x51` (OP_1)
-- **Format**: CBOR-encoded `OptimalBridgeBlob`
-- **Content**: L2 chain ID, recipient address, signature
-- **Size**: ~30 bytes (optimized from ~170 bytes)
+```javascript
+const response = await fetch('https://api.katbridge.com/bridge-fee');
+const feeData = await response.json();
+const currentFeeInKas = feeData.bridgeFeeInKas; // "10"
+```
 
-### CONTENT Lane (KRC-20 Transfer)
-- **Marker**: `0x00` (OP_0) 
-- **Format**: JSON string
-- **Content**: Token transfer data (protocol, operation, ticker, amount, recipient)
-- **Size**: Variable (typically 100-200 bytes)
+**Response:**
+```json
+{
+  "bridgeFeeInSompi": "1000000000",
+  "bridgeFeeWei": "10000000000000000000", 
+  "bridgeFeeInKas": "10"
+}
+```
 
-## Usage
+## L1 → L2 Integration (Kaspa to Kasplex)
 
-### Generate Script
+Create a Kaspa transaction with a bridge script containing two data lanes:
+
+### Generate Bridge Script
 ```javascript
 const { generateBridgeScript } = require('./generate-script.js');
 
 const script = generateBridgeScript({
   publicKey: new Uint8Array([...]), // 33-byte compressed public key
-  chainId: 202555,                  // L2 chain ID
+  chainId: 202555,                  // L2 chain ID (202555 = Kasplex)
   l2Address: "0x1234...",           // L2 recipient address (20 bytes)
   signatureRS: "0x1234...",         // ECDSA signature r+s (64 bytes)
   token: { mode: "mint", tick: "KAS" },
@@ -51,65 +49,52 @@ const script = generateBridgeScript({
 });
 ```
 
-### Parse Script
-```bash
-node parse-script.js --script 4115a7a3138fddd461c81939a116d1f656cb53e85f8f9ae42a8291357dffacc32ffb54fea504d34a6bc6760f316da092f49e895200c630233c4594fd1583503c014cdf201e8313690dec9b3029ba5b0ad273775accfa7a2bb79a1dd2fe7b86f1b3962ac0063076b6173706c6578511d01a736aa0001000000742d35cc6639c2532a78444b5d4f71c8be6e56780068f
-```
-
-## Data Formats
-
-### EXTRA Lane (CBOR Format)
+### Data Lanes
+**EXTRA Lane (CBOR)**: Bridge routing data
 ```javascript
 {
   v: 1,                    // Version
-  c: 167012,              // Chain ID (167012=Sepolia, 1=Mainnet)
+  c: 202555,              // Chain ID (202555=Kasplex)
   l: Uint8Array(20),      // L2 address (20 bytes)
   s: Uint8Array(64)       // Signature r+s (64 bytes)
 }
 ```
 
-### CONTENT Lane (JSON Format)
+**CONTENT Lane (JSON)**: Token transfer data
 ```javascript
 {
   p: "krc-20",            // Protocol
-  op: "mint",             // Operation (mint, transfer, etc.)
+  op: "mint",             // Operation (mint for L1→L2)
   tick: "KAS",            // Token ticker
   amt: "10000000000",     // Amount (8 decimals)
   to: "kaspa:..."         // Recipient address
 }
 ```
 
-## EVM Contract Interaction
+## L2 → L1 Integration (Kasplex to Kaspa)
 
-### burnForBridgeBack Function
+Burn ERC-20 tokens on Kasplex to receive KRC-20 tokens on Kaspa:
 
-Bridge tokens from Kasplex (L2) back to Kaspa (L1) by burning ERC-20 tokens.
+### Bridge Contract
+```javascript
+const CONFIG = {
+  CONTRACT: "0x699e7f4a64f6A5a1d7E26B05806d948338E7aDC2",
+  RPC: "https://evmrpc.kasplex.org/",
+  CHAIN_ID: 202555,
+};
 
-#### Requirements
-- Wallet with KAS for gas fees
-- ERC-20 tokens on Kasplex to burn
-- Kaspa address to receive the KRC-20 tokens
+const { burnTokens } = require('./burn-bridge-back.js');
 
-#### Quick Start
+const result = await burnTokens({
+  privateKey: "0x...",                    // Your private key
+  tokenAddress: "0x...",                  // ERC-20 token address
+  amount: parseEther("100"),              // Amount to burn (100 tokens)
+  kaspaAddress: "kaspa:...",              // Destination Kaspa address
+  burnFee: "0x" + parseEther("10").toString(16)  // Bridge fee in hex
+});
+```
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-2. **Configure the script:**
-   - Open `burn-bridge-back.js`
-   - Update `testParams` object (around line 194)
-   - Replace `privateKey` with your actual private key
-   - Update `tokenAddress` with the ERC-20 token contract address
-   - Update `kaspaAddress` with your destination Kaspa address
-
-3. **Run the script:**
-   ```bash
-   npm run burn
-   ```
-
-#### Function Signature
+### Function Signature
 ```solidity
 function burnForBridgeBack(
     address _token,        // ERC-20 token contract address
@@ -118,42 +103,38 @@ function burnForBridgeBack(
 ) external payable
 ```
 
-#### Usage in Code
-```javascript
-const { burnTokens } = require('./burn-bridge-back.js');
+## API Reference
 
-const result = await burnTokens({
-  privateKey: "0x...",                    // Your private key
-  tokenAddress: "0x...",                  // ERC-20 token address
-  amount: parseEther("100"),              // Amount to burn (100 tokens)
-  kaspaAddress: "kaspa:...",              // Destination Kaspa address
-  burnFee: "0x" + parseEther("10").toString(16)  // Optional: burn fee in hex (10 KAS)
-});
-```
+### generateBridgeScript(options)
+Generates a bridge script for L1→L2 operations.
 
-#### Configuration
+**Parameters:**
+- `publicKey` (Uint8Array): 33-byte compressed public key
+- `chainId` (number): L2 chain ID (202555 for Kasplex)
+- `l2Address` (string): L2 recipient address (20 bytes)
+- `signatureRS` (string): ECDSA signature r+s (64 bytes)
+- `token` (object): Token configuration
+  - `mode` (string): "mint" for L1→L2
+  - `tick` (string): Token ticker
+- `amountDecimal` (string): Amount in decimal string
+- `vaultAddress` (string): Kaspa vault P2SH address
 
-Pre-configured for Kasplex production:
+**Returns:** Hex string compatible with Kaspa's `submitCommitReveal` operations
 
-```javascript
-const CONFIG = {
-  CONTRACT: "0x699e7f4a64f6A5a1d7E26B05806d948338E7aDC2",
-  RPC: "https://evmrpc.kasplex.org/",
-  CHAIN_ID: 202555,
-  BURN_FEE: "0x2540be400" // 10 KAS in hex
-};
-```
+### burnTokens(options)
+Burns ERC-20 tokens for L2→L1 operations.
 
-**No environment variables needed** - just update the `privateKey` in the test function or pass it directly to `burnTokens()`.
+**Parameters:**
+- `privateKey` (string): Private key for signing
+- `tokenAddress` (string): ERC-20 token contract address
+- `amount` (BigNumber): Amount to burn
+- `kaspaAddress` (string): Destination Kaspa address
+- `burnFee` (string, optional): Bridge fee in hex
 
-## Process Flow
+**Returns:** Transaction result object
 
-This script allows you to **bridge tokens back from Kasplex (L2) to Kaspa (L1)**:
+---
 
-1. **Burns ERC-20 tokens** on the Kasplex network
-2. **Pays a KAS fee** (currently 10 KAS, subject to change) for the bridge operation
-3. **Initiates the bridge process** that will eventually send KRC-20 tokens to your Kaspa address
-
-## Output
-
-Generated scripts are hex strings compatible with Kaspa's `submitCommitReveal` wallet operations.
+**Bridge Fee API**: `https://api.katbridge.com/bridge-fee`  
+**Bridge Contract**: `0x699e7f4a64f6A5a1d7E26B05806d948338E7aDC2`  
+**Support**: https://discord.gg/TGA76ahDeb
