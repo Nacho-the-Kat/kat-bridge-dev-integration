@@ -71,14 +71,6 @@ function cborEncode(value) {
   throw new Error('Unsupported CBOR type');
 }
 
-// === Keccak256 Implementation (minimal) ===
-function keccak256(data) {
-  // Simple keccak256 implementation for our use case
-  // This is a minimal implementation - in production, use a proper library
-  const crypto = require('crypto');
-  return crypto.createHash('sha3-256').update(data).digest();
-}
-
 // === Utility Functions ===
 function bytesToHex(bytes) {
   const hex = [];
