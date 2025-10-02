@@ -2,15 +2,6 @@
 
 Bridge tokens between Kaspa (L1) and Kasplex (L2) networks. Transfer KRC-20 tokens from Kaspa to mint ERC-20 tokens on Kasplex, or burn ERC-20 tokens on Kasplex to receive KRC-20 tokens on Kaspa.
 
-## Quick Start
-
-```bash
-npm install
-npm run start    # Generate L1→L2 script
-npm run burn     # Test L2→L1 burn
-npm run parse -- --script <hex>  # Parse script
-```
-
 ## Bridge Fee API
 
 **Recommended**: Fetch bridge fees dynamically to ensure you're using current rates:
@@ -32,7 +23,7 @@ const currentFeeInKas = feeData.bridgeFeeInKas; // "10"
 
 ## L1 → L2 Integration (Kaspa to Kasplex)
 
-Create a Kaspa transaction with a bridge script containing two data lanes:
+Create a Kaspa transaction with a bridge script containing two data lanes. This repo includes `generate-script.js` - an example script that generates an envelope containing EVM data. The bridge indexer parses this envelope and triggers mint events on Kasplex based on the EVM data inside envelope:
 
 ### Generate Bridge Script
 ```javascript
@@ -73,7 +64,7 @@ const script = generateBridgeScript({
 
 ## L2 → L1 Integration (Kasplex to Kaspa)
 
-Burn ERC-20 tokens on Kasplex to receive KRC-20 tokens on Kaspa:
+Burn ERC-20 tokens on Kasplex to receive KRC-20 tokens on Kaspa. This repo includes `from_l2_to_l1.js` - an example burn script. The bridge monitors Kasplex on-chain events and triggers KRC-20 transfers to users based on these events:
 
 ### Bridge Contract
 ```javascript
