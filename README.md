@@ -120,12 +120,7 @@ if (kasToken) {
 
 ### Step-by-Step Implementation
 
-#### 1. Install Dependencies
-```bash
-npm install
-```
-
-#### 2. Sign EVM Message on L2 Wallet
+#### 1. Sign EVM Message on L2 Wallet
 
 Before creating the L1 transaction, users must sign an EVM message on their L2 wallet. This message contains the bridge routing information:
 
@@ -173,7 +168,7 @@ const sig = ethers.Signature.from(signature);
 const signatureRS = sig.r.slice(2) + sig.s.slice(2); // Remove 0x and v
 ```
 
-#### 3. Generate Bridge Script
+#### 2. Generate Bridge Script
 Create a Kaspa transaction with a bridge script containing the signed EVM data. This repo includes `generate-script.js` - an example script that generates an envelope containing EVM data. The bridge indexer parses this envelope and triggers mint events on Kasplex based on the EVM data inside envelope:
 ```javascript
 const { generateBridgeScript } = require('./generate-script.js');
@@ -189,7 +184,7 @@ const script = generateBridgeScript({
 });
 ```
 
-#### 4. Create Kaspa Transactions
+#### 3. Create Kaspa Transactions
 
 Create commit and reveal transactions with the script and send to vault + fee addresses.
 
@@ -288,12 +283,7 @@ The bridge script contains two data lanes following the [Kasplex protocol](https
 
 ### Step-by-Step Implementation
 
-#### 1. Install Dependencies
-```bash
-npm install
-```
-
-#### 2. Burn ERC-20 Tokens
+#### 1. Burn ERC-20 Tokens
 
 ```javascript
 const { burnTokens } = require('./from_l2_to_l1.js');
@@ -307,7 +297,7 @@ const result = await burnTokens({
 });
 ```
 
-#### 3. Wait for Relayer Processing
+#### 2. Wait for Relayer Processing
 
 Wait for relayer processing and KRC-20 tokens to appear on Kaspa.
 
