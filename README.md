@@ -109,12 +109,6 @@ if (kasToken) {
 
 ## L1 → L2 Integration (Kaspa to Kasplex)
 
-### Prerequisites
-- Node.js >= 14.0.0
-- Access to Kaspa L1 wallet
-- Access to Kasplex L2 wallet (for signing)
-- Bridge fee in KAS
-
 ### Workflow Overview
 
 1. **User signs EVM message** on L2 wallet with bridge data
@@ -283,12 +277,6 @@ The bridge script contains two data lanes following the [Kasplex protocol](https
 ```
 
 ## L2 → L1 Integration (Kasplex to Kaspa)
-
-### Prerequisites
-- Node.js >= 14.0.0
-- Access to Kasplex L2 wallet
-- Sufficient ETH for gas fees
-- Bridge fee in KAS
 
 ### Workflow Overview
 
