@@ -1,74 +1,93 @@
-// === CBOR-X Implementation (minimal) ===
-function cborEncode(value) {
-  // Simple CBOR encoder for our specific use case
-  const encoder = new TextEncoder();
+// === Updated Bridge Script Generator ===
+// This script has been updated to match the parse-script.js expectations:
+// - Uses "kasplex" envelope identifier (matching parse-script.js)
+// - Uses KRC-20 protocol for token transfers (matching parse-script.js)
+// - Uses amount parameter for token amounts
+// - Attempts to use cbor-x library for proper CBOR encoding
+// - Falls back to custom CBOR implementation if cbor-x is not available
+
+// === CBOR-X Implementation ===
+// Using cbor-x library for proper CBOR encoding (matching bridge-ui implementation)
+let cborEncode;
+
+// Try to load cbor-x library
+try {
+  const cborX = require('cbor-x');
+  cborEncode = cborX.encode;
+} catch (error) {
+  console.warn('cbor-x library not found, falling back to custom implementation');
   
-  if (typeof value === 'number') {
-    if (Number.isInteger(value) && value >= 0) {
-      if (value < 24) {
-        return new Uint8Array([0x00 | value]);
-      } else if (value < 256) {
-        return new Uint8Array([0x18, value]);
-      } else if (value < 65536) {
-        return new Uint8Array([0x19, value >> 8, value & 0xff]);
-      } else if (value < 4294967296) {
-        return new Uint8Array([0x1a, value >> 24, (value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff]);
+  // Fallback custom CBOR implementation
+  cborEncode = function(value) {
+    const encoder = new TextEncoder();
+    
+    if (typeof value === 'number') {
+      if (Number.isInteger(value) && value >= 0) {
+        if (value < 24) {
+          return new Uint8Array([0x00 | value]);
+        } else if (value < 256) {
+          return new Uint8Array([0x18, value]);
+        } else if (value < 65536) {
+          return new Uint8Array([0x19, value >> 8, value & 0xff]);
+        } else if (value < 4294967296) {
+          return new Uint8Array([0x1a, value >> 24, (value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff]);
+        }
       }
     }
-  }
-  
-  if (value instanceof Uint8Array) {
-    const len = value.length;
-    let header;
-    if (len < 24) {
-      header = new Uint8Array([0x40 | len]);
-    } else if (len < 256) {
-      header = new Uint8Array([0x58, len]);
-    } else if (len < 65536) {
-      header = new Uint8Array([0x59, len >> 8, len & 0xff]);
-    } else {
-      throw new Error('Data too large for CBOR');
-    }
-    const result = new Uint8Array(header.length + len);
-    result.set(header, 0);
-    result.set(value, header.length);
-    return result;
-  }
-  
-  if (typeof value === 'object' && value !== null) {
-    const entries = Object.entries(value);
-    const mapHeader = new Uint8Array([0xa0 | entries.length]);
-    const parts = [mapHeader];
     
-    for (const [key, val] of entries) {
-      // Encode key (assuming string keys)
-      const keyBytes = encoder.encode(key);
-      const keyLen = keyBytes.length;
-      let keyHeader;
-      if (keyLen < 24) {
-        keyHeader = new Uint8Array([0x60 | keyLen]);
-      } else if (keyLen < 256) {
-        keyHeader = new Uint8Array([0x78, keyLen]);
+    if (value instanceof Uint8Array) {
+      const len = value.length;
+      let header;
+      if (len < 24) {
+        header = new Uint8Array([0x40 | len]);
+      } else if (len < 256) {
+        header = new Uint8Array([0x58, len]);
+      } else if (len < 65536) {
+        header = new Uint8Array([0x59, len >> 8, len & 0xff]);
       } else {
-        throw new Error('Key too long for CBOR');
+        throw new Error('Data too large for CBOR');
       }
-      parts.push(keyHeader, keyBytes);
-      
-      // Encode value
-      parts.push(cborEncode(val));
+      const result = new Uint8Array(header.length + len);
+      result.set(header, 0);
+      result.set(value, header.length);
+      return result;
     }
     
-    const totalLen = parts.reduce((sum, part) => sum + part.length, 0);
-    const result = new Uint8Array(totalLen);
-    let offset = 0;
-    for (const part of parts) {
-      result.set(part, offset);
-      offset += part.length;
+    if (typeof value === 'object' && value !== null) {
+      const entries = Object.entries(value);
+      const mapHeader = new Uint8Array([0xa0 | entries.length]);
+      const parts = [mapHeader];
+      
+      for (const [key, val] of entries) {
+        // Encode key (assuming string keys)
+        const keyBytes = encoder.encode(key);
+        const keyLen = keyBytes.length;
+        let keyHeader;
+        if (keyLen < 24) {
+          keyHeader = new Uint8Array([0x60 | keyLen]);
+        } else if (keyLen < 256) {
+          keyHeader = new Uint8Array([0x78, keyLen]);
+        } else {
+          throw new Error('Key too long for CBOR');
+        }
+        parts.push(keyHeader, keyBytes);
+        
+        // Encode value
+        parts.push(cborEncode(val));
+      }
+      
+      const totalLen = parts.reduce((sum, part) => sum + part.length, 0);
+      const result = new Uint8Array(totalLen);
+      let offset = 0;
+      for (const part of parts) {
+        result.set(part, offset);
+        offset += part.length;
+      }
+      return result;
     }
-    return result;
-  }
-  
-  throw new Error('Unsupported CBOR type');
+    
+    throw new Error('Unsupported CBOR type');
+  };
 }
 
 // === Utility Functions ===
@@ -103,8 +122,8 @@ function ensureAddressBytes20(addr) {
   return bytes;
 }
 
-function buildKrc20TransferJSON(token, amtDecimalString, toKaspaAddress) {
-  const base = { p: 'krc-20', op: 'transfer', amt: amtDecimalString, to: toKaspaAddress };
+function buildKrc20TransferJSON(token, amount, toKaspaAddress) {
+  const base = { p: 'krc-20', op: 'transfer', amt: amount.toString(), to: toKaspaAddress };
   const json = token.mode === 'issue' ? { ...base, ca: token.ca } : { ...base, tick: token.tick };
   return JSON.stringify(json);
 }
@@ -123,7 +142,7 @@ function buildOptimalExtraAndContent(params) {
   };
 
   const extra = cborEncode(blob);
-  const content = buildKrc20TransferJSON(params.token, params.amountDecimal, params.vaultAddress);
+  const content = buildKrc20TransferJSON(params.token, params.amount, params.to);
 
   return { extra, content };
 }
@@ -136,7 +155,7 @@ function buildEnvelopeSuffix(extra, contentJson) {
   parts.push(new Uint8Array([0x00]));
   // OP_IF
   parts.push(new Uint8Array([0x63]));
-  // "kasplex"
+  // "kasplex" (matching parse-script.js expectations)
   parts.push(new Uint8Array([0x07]), enc.encode('kasplex'));
 
   if (extra && extra.length > 0) {
@@ -222,8 +241,8 @@ function generateBridgeScript(params) {
   if (!params.l2Address) throw new Error('l2Address is required');
   if (!params.signatureRS) throw new Error('signatureRS is required');
   if (!params.token) throw new Error('token is required');
-  if (!params.amountDecimal) throw new Error('amountDecimal is required');
-  if (!params.vaultAddress) throw new Error('vaultAddress is required');
+  if (!params.amount) throw new Error('amount is required');
+  if (!params.to) throw new Error('to is required');
 
   // Build the optimal extra and content
   const { extra, content } = buildOptimalExtraAndContent({
@@ -231,8 +250,8 @@ function generateBridgeScript(params) {
     l2Address: params.l2Address,
     signatureRS: params.signatureRS,
     token: params.token,
-    amountDecimal: params.amountDecimal,
-    toKaspaVaultAddress: params.vaultAddress,
+    amount: params.amount,
+    to: params.to,
   });
 
   // Build envelope suffix
@@ -271,12 +290,12 @@ function testScriptGeneration() {
     
     const script = generateBridgeScript({
       publicKey: publicKey,
-      chainId: 1,
-      l2Address: "0x1234567890123456789012345678901234567890",
+      chainId: 202555,
+      l2Address: "0xaeF33e76972C08b8AC19221cB6e7d2fa4054af43",
       signatureRS: signatureRS,
-      token: { mode: "issue", ca: "0x1234567890123456789012345678901234567890" },
-      amountDecimal: "100.5",
-      vaultAddress: "kaspa:qryv8wv2g9y5mz6k8r7n4t3x1c2v5b6n9m0p1q2w3e4r5t6y7u8i9o0p"
+      token: { mode: "issue", tick: "NACHO" },
+      amount: 100000000, // 1 token in base units
+      to: "kaspa:qryv8wv2g9y5mz6k8r7n4t3x1c2v5b6n9m0p1q2w3e4r5t6y7u8i9o0p"
     });
 
     console.log('✅ Script generated successfully!');
