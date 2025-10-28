@@ -293,7 +293,7 @@ function testScriptGeneration() {
       chainId: 202555,
       l2Address: "0xaeF33e76972C08b8AC19221cB6e7d2fa4054af43",
       signatureRS: signatureRS,
-      token: { mode: "issue", tick: "NACHO" },
+      token: { mode: "mint", tick: "NACHO" },
       amount: 100000000, // 1 token in base units
       to: "kaspa:qryv8wv2g9y5mz6k8r7n4t3x1c2v5b6n9m0p1q2w3e4r5t6y7u8i9o0p"
     });
